@@ -1,0 +1,1004 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Merry Christmas - จาก อาร์ม</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;700&family=Kanit:wght@700;800&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      background: #040711;
+      overflow: hidden;
+      font-family: 'Fira Code', monospace;
+      color: #d8e2ff;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    /* แคนวาสหลักเต็มหน้าจอ */
+    #scene {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    /* ตัวจับเวลาสีแดงมุมขวาบน */
+    #timer {
+      position: fixed;
+      top: 12%;
+      right: 6%;
+      color: #ff4d5e;
+      font-size: clamp(12px, 2.8vw, 15px);
+      font-weight: 500;
+      letter-spacing: 0.5px;
+      text-shadow: 0 0 10px rgba(255, 77, 94, 0.55);
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    /* ปุ่มควบคุมมุมซ้ายบน (เล่นใหม่ / ข้ามไปตอนจบ) */
+    #controls {
+      position: fixed;
+      top: 14px;
+      left: 14px;
+      display: flex;
+      gap: 8px;
+      z-index: 25;
+    }
+
+    .ctrl-btn {
+      background: rgba(16, 24, 48, 0.65);
+      backdrop-filter: blur(6px);
+      border: 1px solid rgba(160, 185, 255, 0.22);
+      color: rgba(235, 242, 255, 0.88);
+      font-family: 'Kanit', sans-serif;
+      font-size: 12px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .ctrl-btn:hover, .ctrl-btn:active {
+      background: rgba(40, 58, 110, 0.85);
+      border-color: rgba(255, 255, 255, 0.45);
+      color: #ffffff;
+    }
+
+    /* กล่องหน้าต่างโค้ดด้านล่าง */
+    #editor-wrapper {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 36%;
+      background: linear-gradient(to bottom, rgba(7, 10, 20, 0.90), rgba(4, 6, 14, 0.98));
+      border-top: 1px solid rgba(120, 145, 210, 0.2);
+      display: flex;
+      flex-direction: column;
+      transition: opacity 0.9s ease, transform 0.9s ease;
+      z-index: 10;
+    }
+
+    #editor-wrapper.hidden {
+      opacity: 0;
+      transform: translateY(20px);
+      pointer-events: none;
+    }
+
+    /* สถิติเหนือหน้าต่างโค้ด */
+    #hud-stats {
+      position: absolute;
+      top: -56px;
+      left: 14px;
+      font-size: clamp(10px, 2.4vw, 12px);
+      line-height: 1.48;
+      color: rgba(195, 210, 245, 0.8);
+      pointer-events: none;
+      text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
+    }
+
+    #hud-stats span.val {
+      color: #ffffff;
+      font-weight: 500;
+    }
+
+    .editor-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 7px 14px;
+      background: rgba(14, 19, 34, 0.96);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      font-size: 12px;
+    }
+
+    .file-tab {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #e6ecff;
+      font-weight: 500;
+    }
+
+    .js-badge {
+      background: #f7df1e;
+      color: #111111;
+      font-weight: 700;
+      font-size: 10px;
+      padding: 1px 5px;
+      border-radius: 3px;
+    }
+
+    .typing-status {
+      color: rgba(180, 195, 230, 0.65);
+      font-size: 11px;
+    }
+
+    #code-body {
+      flex: 1;
+      padding: 10px 14px;
+      overflow: hidden;
+      font-size: clamp(10px, 2.3vw, 12.5px);
+      line-height: 1.55;
+      white-space: pre;
+    }
+
+    .code-line {
+      display: flex;
+    }
+
+    .line-num {
+      display: inline-block;
+      width: 34px;
+      color: rgba(130, 148, 190, 0.42);
+      text-align: right;
+      padding-right: 12px;
+      flex-shrink: 0;
+    }
+
+    /* เคอร์เซอร์สีชมพูแดงกระพริบ */
+    .cursor {
+      display: inline-block;
+      width: 7px;
+      height: 14px;
+      background: #ff3b5c;
+      vertical-align: middle;
+      margin-left: 1px;
+      animation: blink 0.7s infinite;
+    }
+
+    @keyframes blink {
+      0%, 49% { opacity: 1; }
+      50%, 100% { opacity: 0; }
+    }
+
+    /* สี Syntax Highlighting */
+    .kw { color: #ff79c6; }
+    .fn { color: #8be9fd; }
+    .str { color: #f1fa8c; }
+    .num { color: #bd93f9; }
+    .cm { color: #6272a4; font-style: italic; }
+  </style>
+</head>
+<body>
+  <canvas id="scene"></canvas>
+  <div id="timer">t 00.00s</div>
+
+  <div id="controls">
+    <button class="ctrl-btn" id="btn-replay">↻ เล่นใหม่</button>
+    <button class="ctrl-btn" id="btn-skip">⏭ ดูตอนจบ</button>
+  </div>
+
+  <div id="editor-wrapper">
+    <div id="hud-stats">
+      <div>@arm · 2026</div>
+      <div>rotation <span class="val" id="stat-rot">0.00°</span> &nbsp;&nbsp; lights <span class="val" id="stat-lights">0</span></div>
+      <div>letters <span class="val" id="stat-letters">0</span></div>
+    </div>
+    <div class="editor-header">
+      <div class="file-tab"><span class="js-badge">js</span> tree.js</div>
+      <div class="typing-status">typing · 30 fps</div>
+    </div>
+    <div id="code-body"></div>
+  </div>
+
+  <script>
+    // =========================================================================
+    // ตั้งค่าข้อความอวยพรตอนจบ
+    // =========================================================================
+    const FINAL_LINE_1 = "สุขสันต์วันคริสต์มาส";
+    const FINAL_LINE_2 = "จาก อาร์ม";
+
+    const canvas = document.getElementById('scene');
+    const ctx = canvas.getContext('2d');
+    const timerEl = document.getElementById('timer');
+    const editorWrapper = document.getElementById('editor-wrapper');
+    const codeBody = document.getElementById('code-body');
+    const statRot = document.getElementById('stat-rot');
+    const statLights = document.getElementById('stat-lights');
+    const statLetters = document.getElementById('stat-letters');
+
+    let W = 0;
+    let H = 0;
+    let DPR = 1;
+    let finaleBuilt = false;
+
+    // ปรับขนาดแคนวาสให้คมชัดตามหน้าจอทุกอุปกรณ์
+    function resize() {
+      DPR = Math.min(window.devicePixelRatio || 1, 2);
+      W = window.innerWidth;
+      H = window.innerHeight;
+      canvas.width = W * DPR;
+      canvas.height = H * DPR;
+      ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+      if (finaleBuilt) {
+        buildFinaleParticles();
+      }
+    }
+    window.addEventListener('resize', resize);
+
+    // ฟังก์ชันสุ่มแบบกำหนด Seed เพื่อให้รูปทรงต้นไม้สวยงามคงที่
+    const TAU = Math.PI * 2;
+    function makeRng(seed) {
+      let s = seed >>> 0;
+      const rng = () => {
+        s = (s * 1664525 + 1013904223) >>> 0;
+        return s / 4294967296;
+      };
+      rng.normal = () => {
+        const u1 = Math.max(1e-7, rng());
+        const u2 = rng();
+        return Math.sqrt(-2 * Math.log(u1)) * Math.cos(TAU * u2);
+      };
+      return rng;
+    }
+
+    // โค้ดที่จะแสดงพิมพ์อัตโนมัติในหน้าต่างด้านล่าง
+    const SOURCE_CODE_LINES = [
+      "let [a0, a1] = win('trunk');",
+      "for (let i = 0; i < 3600; i++) {",
+      "  const h = rng() * 1.9, a = rng() * TAU;",
+      "  const rad = 0.16 - 0.08 * h / 1.9;",
+      "  const bark = 0.7 + 0.3 * Math.sin(a * 7);",
+      "}",
+      "[a0, a1] = win('needles');",
+      "const tips = [];",
+      "for (let i = 0; i < 24; i++) {",
+      "  const y = Y0 + (Y1 - Y0) * (i / 24);",
+      "  const R = envelope(y), nb = 14 + (i % 5);",
+      "  for (let b = 0; b < nb; b++) {",
+      "    const a = TAU * b / nb + i * 0.618;",
+      "    const L = R * (0.82 + 0.24 * rng());",
+      "    for (let k = 0; k < Math.round(L * 140); k++) {",
+      "      const s = rng() ** 0.65;",
+      "      const yy = y + 0.07 * s * L - 0.22 * (s * L) ** 2;",
+      "      const tone = (0.35 + 0.65 * s ** 1.3);",
+      "      const col = [0.12 + 0.14 * tone, 0.42 + 0.5 * tone, 0.15];",
+      "    }",
+      "  }",
+      "}",
+      "// --- snow settles on the branches",
+      "[a0, a1] = win('snow');",
+      "for (const [dx, dz, y, L] of tips) {",
+      "  const yy = y + 0.07 * f * L - 0.22 * (f * L) ** 2 + 0.035;",
+      "  q.add([dx * f * L, yy, dz * f * L], [0.9, 0.94, 1], 'snow');",
+      "}",
+      "// --- ornaments: shiny balls in red, gold and silver",
+      "const pal = [[0.9, 0.12, 0.12], [0.96, 0.75, 0.22], [0.85, 0.9, 0.96]];",
+      "for (let i = 0; i < 28; i++) {",
+      "  const y = Y0 + 0.1 + (Y1 - Y0 - 0.45) * (1 - Math.sqrt(1 - rng()));",
+      "  for (const v of ball) q.add(v, pal[i % 3], 'ornament');",
+      "}",
+      "const bulb = [[1, 0.82, 0.25], [1, 0.35, 0.35], [0.4, 0.95, 0.65]];",
+      "for (let i = 0; i < 170; i++) {",
+      "  q.add(pos, bulb[i % 3], 'light', a0 + (a1 - a0) * i / 170);",
+      "}",
+      "// --- star on top",
+      "const vtx = k => {",
+      "  const a = Math.PI / 2 + k * TAU / 10, r = k % 2 ? r2 : r1;",
+      "  return [r * Math.cos(a), top[1] + r * Math.sin(a), 0];",
+      "};",
+      "for (let j = 0; j < 8; j++) {",
+      "  const r = 0.12 + len * i / 80;",
+      "  q.add([r * Math.cos(a), top[1] + r * Math.sin(a), 0], 'ray');",
+      "}",
+      "// --- gift boxes under the tree",
+      "const boxes = [[0.62, 0.78, 0.3, 0.26, red, gold],",
+      "  [-0.82, 0.55, 0.34, 0.28, blue, gold],",
+      "  [0.95, -0.25, 0.28, 0.24, green, red]];",
+      "boxes.forEach(([x, z, w, h, col, rib], i) => renderBox(x, z, w, h));",
+      "function envelope(y) {",
+      "  const f = Math.min(1, Math.max(0, (y - Y0) / (Y1 - Y0)));",
+      "  return 1.18 * (1 - f) ** 0.85 + 0.06 * Math.sin(f * 26);",
+      "}"
+    ];
+
+    function highlightSyntax(text) {
+      let escaped = text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+      if (escaped.trim().startsWith('//')) {
+        return `<span class="cm">${escaped}</span>`;
+      }
+      escaped = escaped.replace(/('[^']*')/g, '<span class="str">$1</span>');
+      escaped = escaped.replace(/\b(let|const|for|of|if|return|function)\b/g, '<span class="kw">$1</span>');
+      escaped = escaped.replace(/\b(win|rng|envelope|renderBox|Math|sin|cos|sqrt|min|max|round)\b/g, '<span class="fn">$1</span>');
+      escaped = escaped.replace(/\b(\d+(\.\d+)?)\b/g, '<span class="num">$1</span>');
+      return escaped;
+    }
+
+    // โครงสร้างจุด 3 มิติของต้นคริสต์มาสและของตกแต่งทั้งหมด
+    const points = [];
+    const Y0 = -1.05;
+    const Y1 = 1.25;
+
+    function envelope(y) {
+      const f = Math.min(1, Math.max(0, (y - Y0) / (Y1 - Y0)));
+      return 1.15 * Math.pow(1 - f, 0.82) + 0.055 * Math.sin(f * 26);
+    }
+
+    function buildTreeData() {
+      points.length = 0;
+      const rng = makeRng(20261225);
+
+      // 1. ลำต้น (0.0s - 1.4s)
+      for (let i = 0; i < 540; i++) {
+        const h = rng() * 0.54;
+        const a = rng() * TAU;
+        const rad = 0.16 - 0.04 * (h / 0.54);
+        const y = Y0 - 0.42 + h;
+        const x = rad * Math.cos(a);
+        const z = rad * Math.sin(a);
+        const bark = 0.65 + 0.35 * Math.sin(a * 7 + h * 18);
+        points.push({
+          pos: [x, y, z],
+          nrm: [Math.cos(a), 0.1, Math.sin(a)],
+          col: [0.58 * bark, 0.34 * bark, 0.16 * bark],
+          kind: 'trunk',
+          appear: (i / 540) * 1.4,
+          phase: rng() * TAU
+        });
+      }
+
+      // 2. กิ่งและใบสนสีเขียว (1.3s - 5.5s)
+      const tips = [];
+      const layers = 24;
+      for (let i = 0; i < layers; i++) {
+        const frac = i / (layers - 1);
+        const y = Y0 + (Y1 - Y0) * frac;
+        const R = envelope(y);
+        const nb = Math.max(7, Math.round(16 * (1 - frac * 0.55)));
+        for (let b = 0; b < nb; b++) {
+          const a = (TAU * b) / nb + i * 0.618 + 0.14 * rng.normal();
+          const L = R * (0.82 + 0.24 * rng());
+          const dx = Math.cos(a);
+          const dz = Math.sin(a);
+          tips.push([dx, dz, y, L, frac]);
+
+          const nSteps = Math.max(12, Math.round(L * 28));
+          for (let k = 0; k < nSteps; k++) {
+            const s = Math.pow(rng(), 0.72);
+            const spread = (0.04 + 0.1 * s) * rng.normal();
+            const px = -dz;
+            const pz = dx;
+            const yy = y + 0.06 * s * L - 0.21 * Math.pow(s * L, 2) + 0.025 * rng.normal();
+            const x = dx * s * L + px * spread;
+            const z = dz * s * L + pz * spread;
+            const tone = (0.4 + 0.6 * Math.pow(s, 1.2)) * (0.78 + 0.22 * rng());
+            points.push({
+              pos: [x, yy, z],
+              nrm: [dx * 0.7 + px * 0.3, 0.55, dz * 0.7 + pz * 0.3],
+              col: [0.10 + 0.12 * tone, 0.42 + 0.52 * tone, 0.14 + 0.16 * tone],
+              kind: 'needle',
+              appear: 1.3 + frac * 3.8 + rng() * 0.4,
+              phase: rng() * TAU
+            });
+          }
+        }
+      }
+
+      // 3. เกล็ดหิมะเกาะตามปลายกิ่ง (5.0s - 7.6s)
+      for (let tIdx = 0; tIdx < tips.length; tIdx++) {
+        const [dx, dz, y, L, frac] = tips[tIdx];
+        for (let m = 0; m < 4; m++) {
+          const f = 0.35 + 0.65 * rng();
+          const px = -dz;
+          const pz = dx;
+          const sp = 0.045 * rng.normal();
+          const yy = y + 0.06 * f * L - 0.21 * Math.pow(f * L, 2) + 0.032;
+          points.push({
+            pos: [dx * f * L + px * sp, yy, dz * f * L + pz * sp],
+            nrm: [0, 1, 0],
+            col: [0.88, 0.94, 1.0],
+            kind: 'snow',
+            appear: 5.0 + frac * 2.4 + rng() * 0.3,
+            phase: rng() * TAU
+          });
+        }
+      }
+
+      // 4. ลูกบอลประดับสีแดง ทอง เงิน (7.5s - 10.6s)
+      const ornColors = [
+        [0.95, 0.14, 0.16],
+        [0.98, 0.78, 0.22],
+        [0.86, 0.91, 0.98]
+      ];
+      const numOrnaments = 32;
+      for (let i = 0; i < numOrnaments; i++) {
+        const u = (i + 0.5) / numOrnaments;
+        const y = Y0 + 0.12 + (Y1 - Y0 - 0.35) * (1 - Math.sqrt(1 - u * 0.92));
+        const r = envelope(y) * 0.92;
+        const a = i * 2.39996 + rng() * 0.3;
+        const cx = r * Math.cos(a);
+        const cz = r * Math.sin(a);
+        const col = ornColors[i % 3];
+        const ballR = 0.062;
+        const appearT = 7.5 + (i / numOrnaments) * 3.0;
+
+        const subPts = 14;
+        for (let p = 0; p < subPts; p++) {
+          const phi = Math.acos(1 - (2 * (p + 0.5)) / subPts);
+          const theta = Math.PI * (1 + Math.sqrt(5)) * p;
+          const nx = Math.sin(phi) * Math.cos(theta);
+          const ny = Math.cos(phi);
+          const nz = Math.sin(phi) * Math.sin(theta);
+          points.push({
+            pos: [cx + ballR * nx, y + ballR * ny, cz + ballR * nz],
+            nrm: [nx, ny, nz],
+            col,
+            kind: 'ornament',
+            appear: appearT,
+            phase: rng() * TAU
+          });
+        }
+      }
+
+      // 5. ไฟประดับกระพริบ 170 ดวง (10.5s - 12.6s)
+      const bulbColors = [
+        [1.0, 0.85, 0.30],
+        [1.0, 0.94, 0.65],
+        [1.0, 0.35, 0.35],
+        [0.45, 0.95, 0.65]
+      ];
+      for (let i = 0; i < 170; i++) {
+        const u = i / 170;
+        const y = Y0 + 0.06 + (Y1 - Y0 - 0.16) * u;
+        const r = envelope(y) * 0.96;
+        const a = u * TAU * 6.5 + rng() * 0.35;
+        points.push({
+          pos: [r * Math.cos(a), y, r * Math.sin(a)],
+          nrm: [Math.cos(a), 0.3, Math.sin(a)],
+          col: bulbColors[i % bulbColors.length],
+          kind: 'light',
+          appear: 10.5 + u * 2.0,
+          phase: rng() * TAU
+        });
+      }
+
+      // 6. ดาวสีทองบนยอดไม้และรัศมีแสง (12.5s - 16.5s)
+      const starY = Y1 + 0.16;
+      const rOuter = 0.21;
+      const rInner = 0.085;
+      const starVerts = [];
+      for (let k = 0; k < 10; k++) {
+        const ang = Math.PI / 2 + (k * TAU) / 10;
+        const rad = k % 2 === 0 ? rOuter : rInner;
+        starVerts.push([rad * Math.cos(ang), starY + rad * Math.sin(ang), 0]);
+      }
+
+      for (let k = 0; k < 10; k++) {
+        const v1 = starVerts[k];
+        const v2 = starVerts[(k + 1) % 10];
+        for (let s = 0; s <= 6; s++) {
+          for (let t = 0; t <= 6 - s; t++) {
+            const w1 = s / 6;
+            const w2 = t / 6;
+            const w0 = 1 - w1 - w2;
+            const px = w0 * 0 + w1 * v1[0] + w2 * v2[0];
+            const py = w0 * starY + w1 * v1[1] + w2 * v2[1];
+            for (const zSign of [-1, 1]) {
+              const pz = zSign * w0 * 0.06;
+              points.push({
+                pos: [px, py, pz],
+                nrm: [px * 2, (py - starY) * 2, zSign],
+                col: [1.0, 0.88, 0.32],
+                kind: 'star',
+                appear: 12.5 + rng() * 1.4,
+                phase: rng() * TAU
+              });
+            }
+          }
+        }
+      }
+
+      const rayChars = ['/', '|', '\\', '-'];
+      for (let j = 0; j < 12; j++) {
+        const a = (j * TAU) / 12;
+        for (let step = 1; step <= 6; step++) {
+          const dist = 0.23 + step * 0.045;
+          points.push({
+            pos: [dist * Math.cos(a), starY + dist * Math.sin(a), 0],
+            nrm: [0, 0, 1],
+            col: [1.0, 0.92, 0.55],
+            kind: 'ray',
+            ch: rayChars[j % 4],
+            appear: 14.0 + (step / 6) * 2.2,
+            phase: j * 0.5 + step * 0.4
+          });
+        }
+      }
+
+      // 7. กล่องของขวัญใต้ต้นไม้ (16.5s - 20.5s)
+      const red = [0.88, 0.14, 0.16];
+      const gold = [0.98, 0.80, 0.25];
+      const blue = [0.16, 0.42, 0.92];
+      const green = [0.15, 0.68, 0.30];
+      const white = [0.95, 0.96, 1.0];
+
+      const boxes = [
+        [0.56, 0.58, 0.32, 0.26, blue, gold],
+        [-0.64, 0.48, 0.34, 0.28, red, gold],
+        [0.72, -0.32, 0.28, 0.24, green, red],
+        [-0.58, -0.45, 0.30, 0.26, red, white],
+        [0.05, 0.72, 0.26, 0.22, gold, red]
+      ];
+      const baseY = Y0 - 0.42;
+
+      boxes.forEach(([bx, bz, bw, bh, col, rib], idx) => {
+        const t0 = 16.5 + idx * 0.75;
+        const hw = bw / 2;
+        const steps = 7;
+        for (let side = 0; side < 4; side++) {
+          const ang = (side * Math.PI) / 2;
+          const ca = Math.cos(ang);
+          const sa = Math.sin(ang);
+          for (let ix = 0; ix <= steps; ix++) {
+            const u = (ix / steps) * 2 - 1;
+            for (let iy = 0; iy <= steps; iy++) {
+              const v = iy / steps;
+              const lx = u * hw;
+              const lz = hw;
+              const rx = bx + lx * ca - lz * sa;
+              const rz = bz + lx * sa + lz * ca;
+              const ry = baseY + v * bh;
+              const isRibbon = Math.abs(u) < 0.22 || Math.abs(v - 0.52) < 0.14;
+              points.push({
+                pos: [rx, ry, rz],
+                nrm: [-sa, 0.2, ca],
+                col: isRibbon ? rib : col,
+                kind: 'box',
+                appear: t0 + v * 0.5,
+                phase: rng() * TAU
+              });
+            }
+          }
+        }
+        for (let ix = 0; ix <= steps; ix++) {
+          const u = (ix / steps) * 2 - 1;
+          for (let iz = 0; iz <= steps; iz++) {
+            const w = (iz / steps) * 2 - 1;
+            const isRibbon = Math.abs(u) < 0.22 || Math.abs(w) < 0.22;
+            points.push({
+              pos: [bx + u * hw, baseY + bh, bz + w * hw],
+              nrm: [0, 1, 0],
+              col: isRibbon ? rib : col,
+              kind: 'box',
+              appear: t0 + 0.55,
+              phase: rng() * TAU
+            });
+          }
+        }
+      });
+    }
+
+    // ดาวระยิบระยับบนท้องฟ้า
+    const bgStars = [];
+    function initSky() {
+      bgStars.length = 0;
+      const rng = makeRng(998877);
+      for (let i = 0; i < 170; i++) {
+        bgStars.push({
+          x: rng(),
+          y: rng() * 0.72,
+          size: rng() < 0.25 ? 2 : 1.2,
+          phase: rng() * TAU,
+          speed: 1.5 + rng() * 2.5
+        });
+      }
+    }
+
+    // สร้างกลุ่มอนุภาคสำหรับประกอบเป็นข้อความตอนจบ ("สุขสันต์วันคริสต์มาส / จาก อาร์ม")
+    let finaleParticles = [];
+
+    function buildFinaleParticles() {
+      finaleParticles = [];
+      const off = document.createElement('canvas');
+      off.width = W;
+      off.height = H;
+      const octx = off.getContext('2d');
+
+      const fontSize1 = Math.min(W * 0.074, 44);
+      const fontSize2 = Math.min(W * 0.070, 40);
+      const centerY1 = H * 0.74;
+      const centerY2 = centerY1 + fontSize1 * 1.4;
+
+      octx.fillStyle = '#ffffff';
+      octx.textAlign = 'center';
+      octx.textBaseline = 'middle';
+      octx.font = `800 ${fontSize1}px "Kanit", sans-serif`;
+      octx.fillText(FINAL_LINE_1, W / 2, centerY1);
+      octx.font = `800 ${fontSize2}px "Kanit", sans-serif`;
+      octx.fillText(FINAL_LINE_2, W / 2, centerY2);
+
+      const img = octx.getImageData(0, 0, W, H).data;
+      const step = W < 500 ? 4 : 5;
+      const rng = makeRng(777);
+
+      for (let y = Math.floor(H * 0.64); y < H * 0.94; y += step) {
+        for (let x = Math.floor(W * 0.05); x < W * 0.95; x += step) {
+          const idx = (y * W + x) * 4 + 3;
+          if (img[idx] > 140) {
+            finaleParticles.push({
+              sx: x + (rng() - 0.5) * 190,
+              sy: H * 0.60 + rng() * (H * 0.36),
+              tx: x,
+              ty: y,
+              ch: rng() < 0.5 ? '*' : '.',
+              phase: rng() * TAU
+            });
+          }
+        }
+      }
+      finaleBuilt = true;
+    }
+
+    // วาดซานต้าขี่เลื่อนกวางเรนเดียร์ลอยผ่านท้องฟ้า (16.0s - 26.5s)
+    function drawSantaSleigh(t) {
+      if (t < 16.0 || t > 26.5) return;
+      const p = (t - 16.0) / 10.5;
+      const baseX = -170 + p * (W + 340);
+      const baseY = H * 0.20 + Math.sin(p * Math.PI * 3) * 10;
+      const scale = Math.max(0.68, Math.min(1.08, W / 500));
+
+      ctx.save();
+      ctx.translate(baseX, baseY);
+      ctx.scale(scale, scale);
+      ctx.font = 'bold 10px "Fira Code", monospace';
+
+      // กวางเรนเดียร์ 2 ตัวด้านหน้า
+      const deerOffsets = [95, 148];
+      deerOffsets.forEach((dx, idx) => {
+        const bounce = Math.sin(t * 9 + idx) * 3;
+        ctx.fillStyle = '#c68642';
+        ctx.fillText('  \\|/\\|/', dx, -18 + bounce);
+        ctx.fillText('  /\\_/\\', dx, -10 + bounce);
+        ctx.fillText(' ( o.o )', dx, -1 + bounce);
+        ctx.fillText(' /|===|\\', dx, 7 + bounce);
+        ctx.fillText('  |   |', dx, 15 + bounce);
+
+        // จมูกแดงรูดอล์ฟ
+        if (idx === 1) {
+          ctx.fillStyle = '#ff3b4e';
+          ctx.fillText('@', dx + 45, -1 + bounce);
+        }
+
+        // สายบังเหียนสีทอง
+        ctx.strokeStyle = 'rgba(255, 215, 100, 0.45)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(50, 2);
+        ctx.lineTo(dx + 10, 2 + bounce);
+        ctx.stroke();
+      });
+
+      // ถุงของขวัญด้านหลังเลื่อน
+      ctx.fillStyle = '#8b4513';
+      ctx.fillText('(###)', -8, -4);
+
+      // ซานตาคลอส
+      ctx.fillStyle = '#ff3b4e';
+      ctx.fillText('   _▲_', 15, -18);
+      ctx.fillStyle = '#ffe0bd';
+      ctx.fillText('  (•‿•)', 15, -9);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText('  (===)', 15, -2);
+      ctx.fillStyle = '#ff2a3c';
+      ctx.fillText(' /[###]\\', 13, 6);
+
+      // เลื่อนหิมะสีแดงขอบทอง
+      ctx.fillStyle = '#e62e3d';
+      ctx.fillText('\\[=======]/', 2, 14);
+      ctx.fillStyle = '#ffd15c';
+      ctx.fillText(' ~~~~~~~~~ ', 2, 21);
+
+      ctx.restore();
+    }
+
+    // พื้นคลื่น ASCII ด้านล่างต้นไม้
+    function drawGroundWave(t, centerY) {
+      const waveChars = ['.', ':', '-', '~', '='];
+      const cols = Math.floor(W / 9);
+      const rows = 9;
+      ctx.font = '11px "Fira Code", monospace';
+      ctx.textAlign = 'center';
+
+      for (let r = 0; r < rows; r++) {
+        const py = centerY + r * 11;
+        const alpha = 0.14 + (r / rows) * 0.25;
+        ctx.fillStyle = `rgba(145, 175, 235, ${alpha.toFixed(2)})`;
+        for (let c = 0; c < cols; c++) {
+          const px = c * 9 + 4;
+          const distFromCenter = Math.abs(px - W / 2) / (W * 0.5);
+          const wave = Math.sin(c * 0.22 + t * 2.2 + r * 0.7) + Math.cos(r * 0.8 - t * 1.5);
+          const idx = Math.min(
+            waveChars.length - 1,
+            Math.max(0, Math.floor(((wave + 2) / 4) * waveChars.length))
+          );
+          if (distFromCenter < 0.96) {
+            ctx.fillText(waveChars[idx], px, py);
+          }
+        }
+      }
+    }
+
+    // ตัวแปรควบคุมเวลาแอนิเมชัน
+    let startTime = performance.now();
+    const ASCII_RAMP = ' .:-=+*#%@';
+
+    function resetAnimation() {
+      startTime = performance.now();
+      editorWrapper.classList.remove('hidden');
+    }
+
+    function skipToFinale() {
+      startTime = performance.now() - 24400;
+      editorWrapper.classList.add('hidden');
+    }
+
+    document.getElementById('btn-replay').addEventListener('click', resetAnimation);
+    document.getElementById('btn-skip').addEventListener('click', skipToFinale);
+
+    // อัปเดตการพิมพ์โค้ดในหน้าต่างด้านล่าง
+    function updateCodeEditor(t) {
+      if (t >= 24.3) {
+        editorWrapper.classList.add('hidden');
+        return;
+      }
+      editorWrapper.classList.remove('hidden');
+
+      const progress = Math.min(1, t / 23.8);
+      const totalChars = SOURCE_CODE_LINES.reduce((acc, l) => acc + l.length + 1, 0);
+      const visibleChars = Math.floor(progress * totalChars);
+
+      let count = 0;
+      const renderedLines = [];
+      for (let i = 0; i < SOURCE_CODE_LINES.length; i++) {
+        const line = SOURCE_CODE_LINES[i];
+        if (count + line.length < visibleChars) {
+          renderedLines.push({ num: i + 6, html: highlightSyntax(line), cursor: false });
+          count += line.length + 1;
+        } else {
+          const sliceLen = Math.max(0, visibleChars - count);
+          const partial = line.slice(0, sliceLen);
+          renderedLines.push({ num: i + 6, html: highlightSyntax(partial), cursor: true });
+          break;
+        }
+      }
+
+      const maxVisibleRows = Math.max(6, Math.floor((H * 0.36 - 46) / 19));
+      const sliceStart = Math.max(0, renderedLines.length - maxVisibleRows);
+      const slice = renderedLines.slice(sliceStart);
+
+      codeBody.innerHTML = slice
+        .map(
+          item =>
+            `<div class="code-line"><span class="line-num">${item.num}</span><span>${item.html}${
+              item.cursor ? '<span class="cursor"></span>' : ''
+            }</span></div>`
+        )
+        .join('');
+    }
+
+    // ลูปวาดแอนิเมชันหลัก
+    function render(now) {
+      const t = (now - startTime) / 1000;
+      timerEl.textContent = `t ${t.toFixed(2).padStart(5, '0')}s`;
+
+      // พื้นหลังท้องฟ้ายามค่ำคืน
+      const bgGrad = ctx.createRadialGradient(
+        W * 0.5,
+        H * 0.35,
+        20,
+        W * 0.5,
+        H * 0.45,
+        Math.max(W, H) * 0.8
+      );
+      bgGrad.addColorStop(0, '#0b132b');
+      bgGrad.addColorStop(0.6, '#050917');
+      bgGrad.addColorStop(1, '#02040a');
+      ctx.fillStyle = bgGrad;
+      ctx.fillRect(0, 0, W, H);
+
+      // ดาวบนท้องฟ้า
+      for (const s of bgStars) {
+        const twinkle = 0.35 + 0.65 * (0.5 + 0.5 * Math.sin(t * s.speed + s.phase));
+        ctx.fillStyle = `rgba(220, 232, 255, ${twinkle.toFixed(2)})`;
+        ctx.fillRect(s.x * W, s.y * H, s.size, s.size);
+      }
+
+      // ซานต้าขี่เลื่อน
+      drawSantaSleigh(t);
+
+      // ตำแหน่งและขนาดของต้นคริสต์มาส
+      const treeCenterY = H * 0.39;
+      const treeScale = Math.min(W * 0.34, H * 0.21);
+
+      // พื้นคลื่น ASCII
+      drawGroundWave(t, treeCenterY + treeScale * 1.38);
+
+      // คำนวณการหมุน 3D ของต้นคริสต์มาส
+      const rotY = t * 0.68;
+      const cosR = Math.cos(rotY);
+      const sinR = Math.sin(rotY);
+      const fov = 3.6;
+
+      const projected = [];
+      let activeLetters = 0;
+      let activeLights = 0;
+
+      for (let i = 0; i < points.length; i++) {
+        const pt = points[i];
+        if (t < pt.appear) continue;
+
+        activeLetters++;
+        if (pt.kind === 'light') activeLights++;
+
+        const [x, y, z] = pt.pos;
+        const rx = x * cosR - z * sinR;
+        const rz = x * sinR + z * cosR;
+
+        const [nx, ny, nz] = pt.nrm;
+        const rnx = nx * cosR - nz * sinR;
+        const rnz = nx * sinR + nz * cosR;
+
+        const persp = fov / (fov + rz + 2.8);
+        const sx = W * 0.5 + rx * treeScale * persp * 1.45;
+        const sy = treeCenterY - y * treeScale * persp * 1.45;
+
+        projected.push({
+          sx,
+          sy,
+          rz,
+          persp,
+          rnx,
+          ny,
+          rnz,
+          pt
+        });
+      }
+
+      // เรียงลำดับจากไกลไปใกล้
+      projected.sort((a, b) => b.rz - a.rz);
+
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+
+      for (let i = 0; i < projected.length; i++) {
+        const item = projected[i];
+        const { sx, sy, persp, rnx, ny, rnz, pt } = item;
+
+        let lum = Math.max(0.22, rnx * 0.45 + ny * 0.65 - rnz * 0.55);
+        const [r, g, b] = pt.col;
+        let ch = ASCII_RAMP[Math.min(ASCII_RAMP.length - 1, Math.floor(lum * ASCII_RAMP.length))];
+        let fontSize = Math.max(8, Math.round(11 * persp));
+
+        if (pt.kind === 'light') {
+          const blink = 0.45 + 0.55 * Math.sin(t * 5.2 + pt.phase);
+          lum = 0.6 + 0.4 * blink;
+          ch = blink > 0.65 ? '@' : '*';
+          fontSize = Math.max(10, Math.round(13 * persp));
+        } else if (pt.kind === 'ornament') {
+          ch = lum > 0.65 ? '@' : 'o';
+          fontSize = Math.max(9, Math.round(12 * persp));
+        } else if (pt.kind === 'star') {
+          const pulse = 0.8 + 0.2 * Math.sin(t * 6 + pt.phase);
+          lum = pulse;
+          ch = '*';
+          fontSize = Math.max(10, Math.round(13 * persp));
+        } else if (pt.kind === 'ray') {
+          const pulse = Math.max(0, Math.sin(t * 4.5 + pt.phase));
+          if (pulse < 0.2) continue;
+          lum = pulse;
+          ch = pt.ch;
+          fontSize = Math.max(10, Math.round(12 * persp));
+        } else if (pt.kind === 'box') {
+          ch = lum > 0.55 ? '#' : '=';
+        }
+
+        const cr = Math.min(255, Math.round(r * lum * 275));
+        const cg = Math.min(255, Math.round(g * lum * 275));
+        const cb = Math.min(255, Math.round(b * lum * 275));
+
+        ctx.font = `${pt.kind === 'light' || pt.kind === 'star' ? 'bold ' : ''}${fontSize}px "Fira Code", monospace`;
+        ctx.fillStyle = `rgb(${cr},${cg},${cb})`;
+        ctx.fillText(ch, sx, sy);
+      }
+
+      // อัปเดตสถิติ HUD & การพิมพ์โค้ด
+      const deg = ((rotY * 180) / Math.PI) % 360;
+      statRot.textContent = `${deg.toFixed(2)}°`;
+      statLights.textContent = activeLights;
+      statLetters.textContent = activeLetters.toLocaleString();
+      updateCodeEditor(t);
+
+      // ช่วงตอนจบ (t >= 24.4s) แสดงข้อความ "สุขสันต์วันคริสต์มาส / จาก อาร์ม"
+      if (t >= 24.4) {
+        if (!finaleBuilt) buildFinaleParticles();
+
+        const fProgress = Math.min(1, (t - 24.4) / 1.8);
+        const ease = 1 - Math.pow(1 - fProgress, 3);
+
+        // อนุภาคระยิบระยับวิ่งมารวมตัวเป็นตัวอักษร
+        ctx.font = '10px "Fira Code", monospace';
+        for (let i = 0; i < finaleParticles.length; i++) {
+          const fp = finaleParticles[i];
+          const px = fp.sx + (fp.tx - fp.sx) * ease;
+          const py = fp.sy + (fp.ty - fp.sy) * ease;
+          const sparkle = 0.4 + 0.6 * Math.sin(t * 6 + fp.phase);
+          ctx.fillStyle = `rgba(255, 244, 210, ${(sparkle * (1 - ease * 0.45)).toFixed(2)})`;
+          ctx.fillText(fp.ch, px, py);
+        }
+
+        // ตัวอักษรภาษาไทยคมชัดเรืองแสง
+        if (fProgress > 0.35) {
+          const textAlpha = Math.min(1, (fProgress - 0.35) / 0.65);
+          const fontSize1 = Math.min(W * 0.074, 44);
+          const fontSize2 = Math.min(W * 0.070, 40);
+          const centerY1 = H * 0.74;
+          const centerY2 = centerY1 + fontSize1 * 1.4;
+
+          ctx.save();
+          ctx.globalAlpha = textAlpha;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.shadowColor = 'rgba(255, 215, 120, 0.78)';
+          ctx.shadowBlur = 18;
+          ctx.fillStyle = '#ffffff';
+
+          ctx.font = `800 ${fontSize1}px "Kanit", sans-serif`;
+          ctx.fillText(FINAL_LINE_1, W / 2, centerY1);
+
+          ctx.font = `800 ${fontSize2}px "Kanit", sans-serif`;
+          ctx.fillText(FINAL_LINE_2, W / 2, centerY2);
+          ctx.restore();
+        }
+      }
+
+      requestAnimationFrame(render);
+    }
+
+    // เริ่มต้นทำงานเมื่อโหลดหน้าเว็บเสร็จสมบูรณ์
+    window.onload = function () {
+      resize();
+      initSky();
+      buildTreeData();
+      startTime = performance.now();
+      requestAnimationFrame(render);
+    };
+  </script>
+</body>
+</html>
